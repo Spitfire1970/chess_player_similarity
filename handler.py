@@ -13,6 +13,7 @@ class EndpointHandler():
         self.model.eval()
  
     def __call__(self, data):
+        data = data.get("inputs", data)
         if data["length"] == 0:
             return {"reply": "hello from inference api!!"}
         tensor = torch.tensor(data["tensor"]).float().to(self.device)
