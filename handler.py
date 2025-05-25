@@ -1,10 +1,11 @@
+import os
 import torch
 from encoder.model import Encoder
  
 class EndpointHandler():
-    def __init__(self, path="6.pt"):
+    def __init__(self, model_dir):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        checkpoint = torch.load(path, self.device, weights_only=True)
+        checkpoint = torch.load(os.path.join(model_dir, "6.pt"), self.device, weights_only=True)
         self.model = Encoder(self.device)
         state_dict = checkpoint['model_state']
         self.model.load_state_dict(state_dict)
