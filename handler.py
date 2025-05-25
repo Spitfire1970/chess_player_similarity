@@ -12,16 +12,18 @@ class EndpointHandler():
         self.model.eval()
  
     def __call__(self, data):
-        tensor = torch.from_numpy(data.tensor).float().to(self.device)
-        if len(data) == 1:
+        if data["length"] == 0:
+            return {"reply": "hello from inference api!!"}
+        tensor = torch.tensor(data["tensor"]).float().to(self.device)
+        if data["length"] == 1:
             with torch.no_grad():
                 embed = self.model(tensor)
                 embed = embed / torch.norm(embed)
-            return {"reply": embed.cpu().numpy()}
+            return {"reply": embed.cpu().numpy().tolist()}
         else:
             with torch.no_grad():
                 embeds = self.model(tensor)
-                embeds = embeds.view((1, data.num_games, -1)).to(self.device)
+                embeds = embeds.view((1, data["num_games"], -1)).to(self.device)
                 centroids_incl = torch.mean(embeds, dim=1, keepdim=True)
                 centroids_incl = centroids_incl.clone() / torch.norm(centroids_incl, dim=2, keepdim=True)
             centroids_incl = centroids_incl.cpu().squeeze(1)
