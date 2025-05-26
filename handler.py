@@ -251,7 +251,7 @@ class EndpointHandler():
             embed = embed / torch.norm(embed)
         arr = embed.cpu().numpy()
         embeddings = [arr[i] for i in range(arr.shape[0])]
-        similarities = [np.dot(player_centroid, embed) for embed in embeddings]
+        similarities = [np.dot(np.array(player_centroid), embed) for embed in embeddings]
         result = move_sans[np.argmax(similarities)]
 
         print('exiting ai_move endpoint')
