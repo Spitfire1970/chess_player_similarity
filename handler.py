@@ -235,6 +235,7 @@ class EndpointHandler():
     
     def fetch_lichess_eval(self, fen, move_san):
         print('fen', fen)
+        print('move_san', move_san)
         url = f"https://lichess.org/api/cloud-eval?fen={fen}"
         headers = {"Accept": "application/json"}
         try:
@@ -254,7 +255,7 @@ class EndpointHandler():
             return evals
 
         board = chess.Board(fen)
-
+        print(data, type(data))
         # Only process the first PV for simplicity
         pv = data["pvs"][0]
         moves_uci = pv["moves"].split()
