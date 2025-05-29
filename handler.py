@@ -261,39 +261,29 @@ class EndpointHandler():
         try:
             board = game.board()
             moves = list(game.mainline_moves())
-            print('what i want', moves)
-            print('what i have', move_sans)
             
-            print('here3')
             for move in moves:
                 board.push(move)
             response = requests.post("http://13.49.80.182/stockfish_eval", json={"fen": board.fen()})
-            print('here5')
+
             if response.status_code == 400:
                 print(response.text)
                 print('exiting ai_move endpoint status code before move')
                 return {"reply": result}
-            print(response.text, '|', response.json())
             best_eval = response.json()["value"]
             best_move = response.json()["best"]
-            print(best_move)
             best_move = chess.Move.from_uci(best_move)
-            print(best_move)
             best_move = board.san(best_move)
-            print(best_move)
-
 
             for move in ordered_moves:
-                print('here1')
                 test_board = board.copy()
                 test_board.push(board.parse_san(move_sans[move]))
-                print('here2')
                 response = requests.post("http://13.49.80.182/stockfish_eval", json={"fen": test_board.fen()})
                 if response.status_code == 500:
                     print('exiting ai_move endpoint status code after move')
                     return {"reply": best_move}
                 eval = response.json()["value"]
-                if (color == "white" and (best_eval - eval < 100)) or (color == "black" and (best_eval - eval > -100)):
+                if (color == "white" and (best_eval - eval < 120)) or (color == "black" and (best_eval - eval > -120)):
                     print('exiting ai_move endpoint nice found!')
                     return {"reply": move_sans[move]}
             print('exiting ai_move endpoint all moves are shit!')
@@ -301,7 +291,7 @@ class EndpointHandler():
 
         except Exception as e:
             print('error sending to lichess', e)
-        print('exiting ai_move endpoint all moves are shit!')
+        print('exiting ai_move endpoint due to exception')
         return {"reply": result}
     
     def __call__(self, data):
