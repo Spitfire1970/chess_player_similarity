@@ -244,12 +244,41 @@ class EndpointHandler():
                 return None
             print('here3', response.text)
             data = response.json()
-            for pv in data.get("pvs", []):
-                if pv.get("san") == move_san:
-                    return pv.get("cp", 0) if "cp" in pv else (100000 if pv.get("mate", 0) > 0 else -100000)
         except Exception as e:
-            print("yo2 error: ", e)
-        return None  # fallback if not found
+            print(f"Error fetching lichess eval: {e}")
+            return {}
+
+        evals = {}
+        if "pvs" not in data or not data["pvs"]:
+            print(evals)
+            return evals
+
+        board = chess.Board(fen)
+
+        # Only process the first PV for simplicity
+        pv = data["pvs"][0]
+        moves_uci = pv["moves"].split()
+        cp_score = pv.get("cp")
+        mate_score = pv.get("mate")
+
+        # If mate score is given, assign a very large eval to the first move
+        if mate_score is not None:
+            score = 100000 if mate_score > 0 else -100000
+        elif cp_score is not None:
+            score = cp_score
+        else:
+            score = 0
+
+        # Map the first move in PV to the score
+        if moves_uci:
+            first_move_uci = moves_uci[0]
+            move = chess.Move.from_uci(first_move_uci)
+            san = board.san(move)
+            evals[san] = score
+
+        print(evals, type(evals))
+
+        return evals
     
     def ai_move(self, data):
         print('entering ai_move endpoint')
