@@ -175,6 +175,7 @@ class EndpointHandler():
                 1: self.create_user_embedding,
                 2: self.ai_move
                 }
+        self.stockfish_path = os.path.join(model_dir, "stockfish")
 
     def say_hi(self, _data):
         print('entering test endpoint')
@@ -261,7 +262,7 @@ class EndpointHandler():
 
         legal_moves = list(board.legal_moves)
         evals = {}
-        with chess.engine.SimpleEngine.popen_uci("stockfish") as engine:
+        with chess.engine.SimpleEngine.popen_uci(self.stockfish_path ) as engine:
             for move in legal_moves:
                 board.push(move)
                 score = engine.analyse(board, chess.engine.Limit(depth=10))["score"].white()
