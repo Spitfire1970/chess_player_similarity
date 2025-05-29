@@ -267,7 +267,7 @@ class EndpointHandler():
             print('here3')
             for move in moves:
                 board.push(move)
-            response = requests.get("http://13.49.80.182/stockfish_eval", json={"fen": board.fen()})
+            response = requests.post("http://13.49.80.182/stockfish_eval", json={"fen": board.fen()})
             print('here5')
             if response.status_code == 500:
                 print(response.text)
