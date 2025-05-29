@@ -260,6 +260,8 @@ class EndpointHandler():
         try:
             board = game.board()
             moves = list(game.mainline_moves())
+            print('what i want', moves)
+            print('what i have', move_sans)
             
             print('here3')
             for move in moves:
@@ -288,7 +290,7 @@ class EndpointHandler():
                 eval = response.json()["pvs"][0]["cp"]
                 if (color == "white" and (best_eval - eval < 100)) or (color == "black" and (best_eval - eval < -100)):
                     print('exiting ai_move endpoint nice found!')
-                    return {"reply": move}
+                    return {"reply": move_sans[move]}
 
         except Exception as e:
             print('error sending to lichess', e)
