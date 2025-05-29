@@ -242,6 +242,7 @@ class EndpointHandler():
             if response.status_code != 200:
                 print('here2', response.text)
                 return None
+            print('here3', response.text)
             data = response.json()
             for pv in data.get("pvs", []):
                 if pv.get("san") == move_san:
@@ -300,7 +301,7 @@ class EndpointHandler():
                     print('exiting ai_move endpoint')
                     return {"reply": move}
             fallback = move_sans[ordered[0]]
-            print('exiting ai_move endpoint (fallback)')
+            print('exiting ai_move endpoint (fallback2)')
             return {"reply": fallback}
         except Exception as e:
             print("yo error:", e)
