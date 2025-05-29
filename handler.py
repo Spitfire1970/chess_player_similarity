@@ -2,11 +2,48 @@ import os
 import io
 import torch
 import requests
+import time
 import chess.pgn
 import chess.engine
 import numpy as np
 from data_objects.game import Game
 from encoder.model import Encoder
+
+STOCKFISH_CP_THRESHOLD = 100  # Allow style move if within this many centipawns of Stockfish's best
+MAX_STOCKFISH_DEPTH = 20      # Limit depth to avoid long waits
+
+def query_stockfish_eval(fen):
+    url = f"https://lichess.org/api/cloud-eval?fen={fen}&multiPv=3&depth={MAX_STOCKFISH_DEPTH}"
+    headers = {"Accept": "application/json"}
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Stockfish query failed with status {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Error querying Stockfish: {e}")
+        return None
+
+def is_reasonable_move(style_move, stockfish_pvs):
+    for pv in stockfish_pvs:
+        if style_move in pv["moves"].split():
+            return True
+    best_cp = stockfish_pvs[0].get("cp", 0)
+    for pv in stockfish_pvs:
+        if abs(pv.get("cp", 0) - best_cp) <= STOCKFISH_CP_THRESHOLD:
+            if style_move == pv["moves"].split()[0]:
+                return True
+    return False
+
+def get_fen_after_move(game, move_san):
+    board = game.board()
+    for move in game.mainline_moves():
+        board.push(move)
+    move = board.parse_san(move_san)
+    board.push(move)
+    return board.fen()
  
 def generate_alternative_pgns(game):    
     if not game:
@@ -176,7 +213,6 @@ class EndpointHandler():
                 1: self.create_user_embedding,
                 2: self.ai_move
                 }
-        self.stockfish_path = os.path.join(model_dir, "stockfish")
 
     def say_hi(self, _data):
         print('entering test endpoint')
@@ -233,54 +269,6 @@ class EndpointHandler():
         print('exiting create_username endpoint')
         return {"reply": final_embeds}
     
-    def fetch_lichess_eval(self, fen, move_san):
-        print('fen', fen)
-        print('move_san', move_san)
-        url = f"https://lichess.org/api/cloud-eval?fen={fen}"
-        headers = {"Accept": "application/json"}
-        try:
-            response = requests.get(url, headers=headers)
-            if response.status_code != 200:
-                print('here2', response.text)
-                return None
-            print('here3', response.text)
-            data = response.json()
-        except Exception as e:
-            print(f"Error fetching lichess eval: {e}")
-            return {}
-
-        evals = {}
-        if "pvs" not in data or not data["pvs"]:
-            print(evals)
-            return evals
-
-        board = chess.Board(fen)
-        print(data, type(data))
-        # Only process the first PV for simplicity
-        pv = data["pvs"][0]
-        moves_uci = pv["moves"].split()
-        cp_score = pv.get("cp")
-        mate_score = pv.get("mate")
-
-        # If mate score is given, assign a very large eval to the first move
-        if mate_score is not None:
-            score = 100000 if mate_score > 0 else -100000
-        elif cp_score is not None:
-            score = cp_score
-        else:
-            score = 0
-
-        # Map the first move in PV to the score
-        if moves_uci:
-            first_move_uci = moves_uci[0]
-            move = chess.Move.from_uci(first_move_uci)
-            san = board.san(move)
-            evals[san] = score
-
-        print(evals, type(evals))
-
-        return evals
-    
     def ai_move(self, data):
         print('entering ai_move endpoint')
         pgn_string = data["pgn_string"]
@@ -302,42 +290,33 @@ class EndpointHandler():
             embed = embed / torch.norm(embed)
 
         arr = embed.cpu().numpy()
-        similarities = [np.dot(np.array(player_centroid), embed) for embed in arr]
-        ordered = np.argsort(similarities)[::-1]
+        similarities = [np.dot(np.array(player_centroid), emb) for emb in arr]
+        ordered_indices = np.argsort(similarities)[::-1]
 
+        for idx in ordered_indices:
+            move_san = move_sans[idx]
+            fen_after_move = get_fen_after_move(game, move_san)
+
+            sf_eval = query_stockfish_eval(fen_after_move)
+            if sf_eval and "pvs" in sf_eval:
+                if is_reasonable_move(move_san, sf_eval["pvs"]):
+                    return move_san
+            else:
+                # fallback to style move if no eval available
+                return move_san
+            
+            time.sleep(0.2)  # Respect API rate limit
+
+        # Fallback: take Stockfish's best move from original position
         board = game.board()
         for move in game.mainline_moves():
             board.push(move)
+        fallback_eval = query_stockfish_eval(board.fen())
+        if fallback_eval and "pvs" in fallback_eval:
+            return fallback_eval["pvs"][0]["moves"].split()[0]
 
-
-        legal_moves = list(board.legal_moves)
-        evals = {}
-        try:
-            fen = board.fen()
-            evals = {}
-            for move in legal_moves:
-                san = board.san(move)
-                eval_score = self.fetch_lichess_eval(fen, san)
-                if eval_score is not None:
-                    evals[san] = eval_score
-
-            best_score = max(evals.values()) if board.turn == chess.WHITE else min(evals.values())
-            threshold = 200
-
-            for i in ordered:
-                move = move_sans[i]
-                s = evals.get(move)
-                if s is not None and (s - best_score if board.turn == chess.WHITE else best_score - s) <= threshold:
-                    print('exiting ai_move endpoint')
-                    return {"reply": move}
-            fallback = move_sans[ordered[0]]
-            print('exiting ai_move endpoint (fallback2)')
-            return {"reply": fallback}
-        except Exception as e:
-            print("yo error:", e)
-            fallback = move_sans[ordered[0]]
-            print('exiting ai_move endpoint (fallback)')
-            return {"reply": fallback}
+        # Final fallback: return top style move
+        return move_sans[ordered_indices[0]]
     
     def __call__(self, data):
         data = data.get("inputs", data)
