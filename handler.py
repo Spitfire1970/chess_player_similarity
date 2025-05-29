@@ -1,6 +1,7 @@
 import os
 import io
 import torch
+import requests
 import chess.pgn
 import chess.engine
 import numpy as np
@@ -232,6 +233,21 @@ class EndpointHandler():
         print('exiting create_username endpoint')
         return {"reply": final_embeds}
     
+    def fetch_lichess_eval(fen, move_san):
+        url = f"https://lichess.org/api/cloud-eval?fen={fen}&multiPv=5&depth=15"
+        headers = {"Accept": "application/json"}
+        try:
+            response = requests.get(url, headers=headers)
+            if response.status_code != 200:
+                return None
+            data = response.json()
+            for pv in data.get("pvs", []):
+                if pv.get("san") == move_san:
+                    return pv.get("cp", 0) if "cp" in pv else (100000 if pv.get("mate", 0) > 0 else -100000)
+        except:
+            pass
+        return None  # fallback if not found
+    
     def ai_move(self, data):
         print('entering ai_move endpoint')
         pgn_string = data["pgn_string"]
@@ -264,15 +280,13 @@ class EndpointHandler():
         legal_moves = list(board.legal_moves)
         evals = {}
         try:
-            with chess.engine.SimpleEngine.popen_uci(self.stockfish_path ) as engine:
-                for move in legal_moves:
-                    board.push(move)
-                    score = engine.analyse(board, chess.engine.Limit(depth=10))["score"].white()
-                    board.pop()
-                    if score.is_mate():
-                        evals[board.san(move)] = 100000 if score.mate() > 0 else -100000
-                    else:
-                        evals[board.san(move)] = score.score()
+            fen = board.fen()
+            evals = {}
+            for move in legal_moves:
+                san = board.san(move)
+                eval_score = fetch_lichess_eval(fen, san)
+                if eval_score is not None:
+                    evals[san] = eval_score
 
             best_score = max(evals.values()) if board.turn == chess.WHITE else min(evals.values())
             threshold = 200
