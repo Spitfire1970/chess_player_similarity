@@ -290,7 +290,7 @@ class EndpointHandler():
                     print('exiting ai_move endpoint status code after move')
                     return {"reply": result}
                 eval = response.json()["pvs"][0]["cp"]
-                if (color == "white" and (best_eval - eval < 100)) or (color == "black" and (best_eval - eval < -100)):
+                if (color == "white" and (best_eval - eval < 50)) or (color == "black" and (best_eval - eval > -50)):
                     print('exiting ai_move endpoint nice found!')
                     return {"reply": move_sans[move]}
 
