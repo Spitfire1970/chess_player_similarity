@@ -163,7 +163,7 @@ def process_game(game, prediction_mode = False):
 class EndpointHandler():
     def __init__(self, model_dir):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        checkpoint = torch.load(os.path.join(model_dir, "6.pt"), self.device, weights_only=True)
+        checkpoint = torch.load(os.path.join(model_dir, "6_2.pt"), self.device, weights_only=True)
         self.model = Encoder(self.device)
         state_dict = checkpoint['model_state']
         self.model.load_state_dict(state_dict)
@@ -253,6 +253,10 @@ class EndpointHandler():
         embeddings = [arr[i] for i in range(arr.shape[0])]
         similarities = [np.dot(np.array(player_centroid), embed) for embed in embeddings]
         result = move_sans[np.argmax(similarities)]
+
+        ordered_moves = np.argsort(similarities).tolist()[::-1]
+        # for move in ordered_moves:
+            
 
         print('exiting ai_move endpoint')
         return {"reply": result}
