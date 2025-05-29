@@ -273,6 +273,7 @@ class EndpointHandler():
                 print(response.text)
                 print('exiting ai_move endpoint status code before move')
                 return {"reply": result}
+            print(response.text, '|', response.json())
             best_eval = response.json()["value"]
             best_move = response.json()["best"]
             print(best_move)
