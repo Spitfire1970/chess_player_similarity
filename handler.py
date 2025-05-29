@@ -234,11 +234,13 @@ class EndpointHandler():
         return {"reply": final_embeds}
     
     def fetch_lichess_eval(self, fen, move_san):
-        url = f"https://lichess.org/api/cloud-eval?fen={fen}&multiPv=5&depth=15"
+        print('fen', fen)
+        url = f"https://lichess.org/api/cloud-eval?fen={fen}"
         headers = {"Accept": "application/json"}
         try:
             response = requests.get(url, headers=headers)
             if response.status_code != 200:
+                print('here2', response.text)
                 return None
             data = response.json()
             for pv in data.get("pvs", []):
