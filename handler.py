@@ -268,6 +268,7 @@ class EndpointHandler():
             headers = {"Accept": "application/json"}
             response = requests.get(url, headers=headers)
             if response.status_code == 404:
+                print(response.text)
                 print('exiting ai_move endpoint status code before move')
                 return {"reply": result}
             best_eval = response.json()["pvs"][0]["cp"]
