@@ -267,17 +267,14 @@ class EndpointHandler():
             print('here3')
             for move in moves:
                 board.push(move)
-            url = f"https://lichess.org/api/cloud-eval?fen={board.fen()}"
-            headers = {"Accept": "application/json"}
-            print('here4')
-            response = requests.get(url, headers=headers)
+            response = requests.get("http://13.49.80.182/stockfish_eval", json={"fen": board.fen()})
             print('here5')
-            if response.status_code == 404:
+            if response.status_code == 500:
                 print(response.text)
                 print('exiting ai_move endpoint status code before move')
                 return {"reply": result}
-            best_eval = response.json()["pvs"][0]["cp"]
-            best_move = response.json()["pvs"][0]["moves"].split(" ")[0]
+            best_eval = response.json()["value"]
+            best_move = response.json()["best"]
             print(best_move)
             best_move = chess.Move.from_uci(best_move)
             print(best_move)
@@ -290,13 +287,11 @@ class EndpointHandler():
                 test_board = board.copy()
                 test_board.push(board.parse_san(move_sans[move]))
                 print('here2')
-                url = f"https://lichess.org/api/cloud-eval?fen={test_board.fen()}"
-                headers = {"Accept": "application/json"}
-                response = requests.get(url, headers=headers)
-                if response.status_code == 404 or "pvs" not in response.json():
+                response = requests.get("http://13.49.80.182/stockfish_eval", json={"fen": test_board.fen()})
+                if response.status_code == 500:
                     print('exiting ai_move endpoint status code after move')
                     return {"reply": best_move}
-                eval = response.json()["pvs"][0]["cp"]
+                eval = response.json()["value"]
                 if (color == "white" and (best_eval - eval < 100)) or (color == "black" and (best_eval - eval > -100)):
                     print('exiting ai_move endpoint nice found!')
                     return {"reply": move_sans[move]}
