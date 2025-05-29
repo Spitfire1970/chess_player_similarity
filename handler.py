@@ -244,8 +244,8 @@ class EndpointHandler():
             for pv in data.get("pvs", []):
                 if pv.get("san") == move_san:
                     return pv.get("cp", 0) if "cp" in pv else (100000 if pv.get("mate", 0) > 0 else -100000)
-        except:
-            pass
+        except Exception as e:
+            print("yo2 error: ", e)
         return None  # fallback if not found
     
     def ai_move(self, data):
