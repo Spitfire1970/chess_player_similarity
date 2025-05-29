@@ -2,11 +2,12 @@ import os
 import io
 import torch
 import chess.pgn
+import chess.engine
 import numpy as np
 from data_objects.game import Game
 from encoder.model import Encoder
  
-def generate_alternative_pgns(game, move_number):    
+def generate_alternative_pgns(game):    
     if not game:
         print("couldn't read game")
         return [], None, None
@@ -16,8 +17,8 @@ def generate_alternative_pgns(game, move_number):
     moves = list(game.mainline_moves())
     
     # Play through the moves up to just before our target
-    for i in range(move_number):
-        board.push(moves[i])
+    for move in moves:
+        board.push(move)
     
     # Get all legal moves from this position
     legal_moves = list(board.legal_moves)
@@ -40,8 +41,8 @@ def generate_alternative_pgns(game, move_number):
         
         # Create the move sequence
         node = new_game
-        for i in range(move_number):
-            node = node.add_variation(moves[i])
+        for move in moves:
+            node = node.add_variation(move)
         
         # Add our alternative move
         node = node.add_variation(legal_move)
@@ -237,29 +238,53 @@ class EndpointHandler():
         player_centroid = data["player_centroid"]
 
         game = chess.pgn.read_game(io.StringIO(pgn_string)) 
-        moves = list(game.mainline_moves())
-        alternative_pgns, move_sans = generate_alternative_pgns(game, len(moves))
+        alternative_pgns, move_sans = generate_alternative_pgns(game)
 
         inputs = []
         for alt_pgn in alternative_pgns:
             game_tensors = process_game(chess.pgn.read_game(io.StringIO(alt_pgn)), True)
             game_tensor = game_tensors[0] if color == "white" else game_tensors[1]
             inputs.append(game_tensor)
+
         tensor = torch.tensor(np.array(inputs)).float().to(self.device)
         with torch.no_grad():
             embed = self.model(tensor)
             embed = embed / torch.norm(embed)
+
         arr = embed.cpu().numpy()
-        embeddings = [arr[i] for i in range(arr.shape[0])]
-        similarities = [np.dot(np.array(player_centroid), embed) for embed in embeddings]
-        result = move_sans[np.argmax(similarities)]
+        similarities = [np.dot(np.array(player_centroid), embed) for embed in arr]
 
-        ordered_moves = np.argsort(similarities).tolist()[::-1]
-        # for move in ordered_moves:
-            
+        board = game.board()
+        for move in game.mainline_moves():
+            board.push(move)
 
-        print('exiting ai_move endpoint')
-        return {"reply": result}
+
+        legal_moves = list(board.legal_moves)
+        evals = {}
+        with chess.engine.SimpleEngine.popen_uci("stockfish") as engine:
+            for move in legal_moves:
+                board.push(move)
+                score = engine.analyse(board, chess.engine.Limit(depth=10))["score"].white()
+                board.pop()
+                if score.is_mate():
+                    evals[board.san(move)] = 100000 if score.mate() > 0 else -100000
+                else:
+                    evals[board.san(move)] = score.score()
+
+        best_score = max(evals.values()) if board.turn == chess.WHITE else min(evals.values())
+        threshold = 200
+        ordered = np.argsort(similarities)[::-1]
+
+        for i in ordered:
+            move = move_sans[i]
+            s = evals.get(move)
+            if s is not None and (s - best_score if board.turn == chess.WHITE else best_score - s) <= threshold:
+                print('exiting ai_move endpoint')
+                return {"reply": move}
+
+        fallback = move_sans[ordered[0]]
+        print('exiting ai_move endpoint (fallback)')
+        return {"reply": fallback}
     
     def __call__(self, data):
         data = data.get("inputs", data)
