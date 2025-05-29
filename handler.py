@@ -240,6 +240,7 @@ class EndpointHandler():
 
         game = chess.pgn.read_game(io.StringIO(pgn_string)) 
         alternative_pgns, move_sans = generate_alternative_pgns(game)
+        game = chess.pgn.read_game(io.StringIO(pgn_string))
 
         inputs = []
         for alt_pgn in alternative_pgns:
