@@ -288,7 +288,7 @@ class EndpointHandler():
                 test_board = board.copy()
                 test_board.push(board.parse_san(move_sans[move]))
                 print('here2')
-                response = requests.get("http://13.49.80.182/stockfish_eval", json={"fen": test_board.fen()})
+                response = requests.post("http://13.49.80.182/stockfish_eval", json={"fen": test_board.fen()})
                 if response.status_code == 500:
                     print('exiting ai_move endpoint status code after move')
                     return {"reply": best_move}
