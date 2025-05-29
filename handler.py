@@ -286,8 +286,8 @@ class EndpointHandler():
                     print('exiting ai_move endpoint nice found!')
                     return {"reply": move}
 
-        except:
-            print('error sending to lichess')
+        except Exception as e:
+            print('error sending to lichess', e)
         print('exiting ai_move endpoint all moves are shit!')
         return {"reply": result}
     
