@@ -261,12 +261,14 @@ class EndpointHandler():
             board = game.board()
             moves = list(game.mainline_moves())
             
-            # Play through the moves up to just before our target
+            print('here3')
             for move in moves:
                 board.push(move)
             url = f"https://lichess.org/api/cloud-eval?fen={board.fen()}"
             headers = {"Accept": "application/json"}
+            print('here4')
             response = requests.get(url, headers=headers)
+            print('here5')
             if response.status_code == 404:
                 print(response.text)
                 print('exiting ai_move endpoint status code before move')
@@ -274,7 +276,9 @@ class EndpointHandler():
             best_eval = response.json()["pvs"][0]["cp"]
 
             for move in ordered_moves:
-                board.push_san(move_sans[move])
+                print('here1')
+                board.push(move_sans[move])
+                print('here2')
                 url = f"https://lichess.org/api/cloud-eval?fen={board.fen()}"
                 headers = {"Accept": "application/json"}
                 response = requests.get(url, headers=headers)
