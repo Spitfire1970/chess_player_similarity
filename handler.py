@@ -254,6 +254,7 @@ class EndpointHandler():
 
         arr = embed.cpu().numpy()
         similarities = [np.dot(np.array(player_centroid), embed) for embed in arr]
+        ordered = np.argsort(similarities)[::-1]
 
         board = game.board()
         for move in game.mainline_moves():
@@ -262,30 +263,34 @@ class EndpointHandler():
 
         legal_moves = list(board.legal_moves)
         evals = {}
-        with chess.engine.SimpleEngine.popen_uci(self.stockfish_path ) as engine:
-            for move in legal_moves:
-                board.push(move)
-                score = engine.analyse(board, chess.engine.Limit(depth=10))["score"].white()
-                board.pop()
-                if score.is_mate():
-                    evals[board.san(move)] = 100000 if score.mate() > 0 else -100000
-                else:
-                    evals[board.san(move)] = score.score()
+        try:
+            with chess.engine.SimpleEngine.popen_uci(self.stockfish_path ) as engine:
+                for move in legal_moves:
+                    board.push(move)
+                    score = engine.analyse(board, chess.engine.Limit(depth=10))["score"].white()
+                    board.pop()
+                    if score.is_mate():
+                        evals[board.san(move)] = 100000 if score.mate() > 0 else -100000
+                    else:
+                        evals[board.san(move)] = score.score()
 
-        best_score = max(evals.values()) if board.turn == chess.WHITE else min(evals.values())
-        threshold = 200
-        ordered = np.argsort(similarities)[::-1]
+            best_score = max(evals.values()) if board.turn == chess.WHITE else min(evals.values())
+            threshold = 200
 
-        for i in ordered:
-            move = move_sans[i]
-            s = evals.get(move)
-            if s is not None and (s - best_score if board.turn == chess.WHITE else best_score - s) <= threshold:
-                print('exiting ai_move endpoint')
-                return {"reply": move}
-
-        fallback = move_sans[ordered[0]]
-        print('exiting ai_move endpoint (fallback)')
-        return {"reply": fallback}
+            for i in ordered:
+                move = move_sans[i]
+                s = evals.get(move)
+                if s is not None and (s - best_score if board.turn == chess.WHITE else best_score - s) <= threshold:
+                    print('exiting ai_move endpoint')
+                    return {"reply": move}
+            fallback = move_sans[ordered[0]]
+            print('exiting ai_move endpoint (fallback)')
+            return {"reply": fallback}
+        except Exception as e:
+            print("yo error:", e)
+            fallback = move_sans[ordered[0]]
+            print('exiting ai_move endpoint (fallback)')
+            return {"reply": fallback}
     
     def __call__(self, data):
         data = data.get("inputs", data)
