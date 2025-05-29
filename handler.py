@@ -279,7 +279,7 @@ class EndpointHandler():
 
             for move in ordered_moves:
                 print('here1')
-                board.push(move_sans[move])
+                board.push(board.parse_san(move_sans[move]))
                 print('here2')
                 url = f"https://lichess.org/api/cloud-eval?fen={board.fen()}"
                 headers = {"Accept": "application/json"}
