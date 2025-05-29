@@ -277,6 +277,13 @@ class EndpointHandler():
                 print('exiting ai_move endpoint status code before move')
                 return {"reply": result}
             best_eval = response.json()["pvs"][0]["cp"]
+            best_move = response.json()["pvs"][0]["moves"].split(" ")[0]
+            print(best_move)
+            best_move = chess.Move.from_uci(best_move)
+            print(best_move)
+            best_move = board.san(best_move)
+            print(best_move)
+
 
             for move in ordered_moves:
                 print('here1')
@@ -288,11 +295,13 @@ class EndpointHandler():
                 response = requests.get(url, headers=headers)
                 if response.status_code == 404 or "pvs" not in response.json():
                     print('exiting ai_move endpoint status code after move')
-                    return {"reply": result}
+                    return {"reply": best_move}
                 eval = response.json()["pvs"][0]["cp"]
-                if (color == "white" and (best_eval - eval < 50)) or (color == "black" and (best_eval - eval > -50)):
+                if (color == "white" and (best_eval - eval < 100)) or (color == "black" and (best_eval - eval > -100)):
                     print('exiting ai_move endpoint nice found!')
                     return {"reply": move_sans[move]}
+            print('exiting ai_move endpoint all moves are shit!')
+            return {"reply": best_move}
 
         except Exception as e:
             print('error sending to lichess', e)
