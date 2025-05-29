@@ -2,48 +2,11 @@ import os
 import io
 import torch
 import requests
-import time
 import chess.pgn
-import chess.engine
 import numpy as np
 from data_objects.game import Game
 from encoder.model import Encoder
 
-STOCKFISH_CP_THRESHOLD = 100  # Allow style move if within this many centipawns of Stockfish's best
-MAX_STOCKFISH_DEPTH = 20      # Limit depth to avoid long waits
-
-def query_stockfish_eval(fen):
-    url = f"https://lichess.org/api/cloud-eval?fen={fen}&multiPv=3&depth={MAX_STOCKFISH_DEPTH}"
-    headers = {"Accept": "application/json"}
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"Stockfish query failed with status {response.status_code}")
-            return None
-    except Exception as e:
-        print(f"Error querying Stockfish: {e}")
-        return None
-
-def is_reasonable_move(style_move, stockfish_pvs):
-    for pv in stockfish_pvs:
-        if style_move in pv["moves"].split():
-            return True
-    best_cp = stockfish_pvs[0].get("cp", 0)
-    for pv in stockfish_pvs:
-        if abs(pv.get("cp", 0) - best_cp) <= STOCKFISH_CP_THRESHOLD:
-            if style_move == pv["moves"].split()[0]:
-                return True
-    return False
-
-def get_fen_after_move(game, move_san):
-    board = game.board()
-    for move in game.mainline_moves():
-        board.push(move)
-    move = board.parse_san(move_san)
-    board.push(move)
-    return board.fen()
  
 def generate_alternative_pgns(game):    
     if not game:
@@ -290,33 +253,42 @@ class EndpointHandler():
             embed = embed / torch.norm(embed)
 
         arr = embed.cpu().numpy()
-        similarities = [np.dot(np.array(player_centroid), emb) for emb in arr]
-        ordered_indices = np.argsort(similarities)[::-1]
+        similarities = [np.dot(np.array(player_centroid), embed) for embed in arr]
+        result = move_sans[np.argmax(similarities)]
 
-        for idx in ordered_indices:
-            move_san = move_sans[idx]
-            fen_after_move = get_fen_after_move(game, move_san)
-
-            sf_eval = query_stockfish_eval(fen_after_move)
-            if sf_eval and "pvs" in sf_eval:
-                if is_reasonable_move(move_san, sf_eval["pvs"]):
-                    return move_san
-            else:
-                # fallback to style move if no eval available
-                return move_san
+        ordered_moves = np.argsort(similarities).tolist()[::-1]
+        try:
+            board = game.board()
+            moves = list(game.mainline_moves())
             
-            time.sleep(0.2)  # Respect API rate limit
+            # Play through the moves up to just before our target
+            for move in moves:
+                board.push(move)
+            url = f"https://lichess.org/api/cloud-eval?fen={board.fen()}"
+            headers = {"Accept": "application/json"}
+            response = requests.get(url, headers=headers)
+            if response.status_code == 404:
+                print('exiting ai_move endpoint status code before move')
+                return {"reply": result}
+            best_eval = response.json()["pvs"][0]["cp"]
 
-        # Fallback: take Stockfish's best move from original position
-        board = game.board()
-        for move in game.mainline_moves():
-            board.push(move)
-        fallback_eval = query_stockfish_eval(board.fen())
-        if fallback_eval and "pvs" in fallback_eval:
-            return fallback_eval["pvs"][0]["moves"].split()[0]
+            for move in ordered_moves:
+                board.push_san(move_sans[move])
+                url = f"https://lichess.org/api/cloud-eval?fen={board.fen()}"
+                headers = {"Accept": "application/json"}
+                response = requests.get(url, headers=headers)
+                if response.status_code == 404 or "pvs" not in response.json():
+                    print('exiting ai_move endpoint status code after move')
+                    return {"reply": result}
+                eval = response.json()["pvs"][0]["cp"]
+                if (color == "white" and (best_eval - eval < 100)) or (color == "black" and (best_eval - eval < -100)):
+                    print('exiting ai_move endpoint nice found!')
+                    return {"reply": move}
 
-        # Final fallback: return top style move
-        return move_sans[ordered_indices[0]]
+        except:
+            print('error sending to lichess')
+        print('exiting ai_move endpoint all moves are shit!')
+        return {"reply": result}
     
     def __call__(self, data):
         data = data.get("inputs", data)
