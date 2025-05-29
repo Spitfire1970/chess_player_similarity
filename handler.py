@@ -233,7 +233,7 @@ class EndpointHandler():
         print('exiting create_username endpoint')
         return {"reply": final_embeds}
     
-    def fetch_lichess_eval(fen, move_san):
+    def fetch_lichess_eval(self, fen, move_san):
         url = f"https://lichess.org/api/cloud-eval?fen={fen}&multiPv=5&depth=15"
         headers = {"Accept": "application/json"}
         try:
@@ -284,7 +284,7 @@ class EndpointHandler():
             evals = {}
             for move in legal_moves:
                 san = board.san(move)
-                eval_score = fetch_lichess_eval(fen, san)
+                eval_score = self.fetch_lichess_eval(fen, san)
                 if eval_score is not None:
                     evals[san] = eval_score
 
