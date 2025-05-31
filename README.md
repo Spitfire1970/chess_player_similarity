@@ -1,4 +1,4 @@
-- the inference endpoint has three main endpoints defined by the dictionary in the class constructor.
+- this inference endpoint has three sub endpoints defined by the dictionary in the class constructor.
 - all requests sent should be of the form {"inputs": data} where the data is another JSON/dictionary/js object.
 - the data must be of the form {"num_endpoint": int} where int is:
                             , 0 (for testing endpoint),
