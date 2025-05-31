@@ -1,9 +1,9 @@
 - this inference endpoint has three sub endpoints defined by the dictionary in the class constructor.
 - all requests sent should be of the form {"inputs": data} where the data is another JSON/dictionary/js object.
 - the data must be of the form {"num_endpoint": int} where int is:
-&emsp;&emsp;&emsp;&emsp;                            , 0 (for testing endpoint),
-&emsp;&emsp;&emsp;&emsp;                            , 1 for creating user
-&emsp;&emsp;&emsp;&emsp;                            , 2 for the model's move
+\ &emsp;&emsp;&emsp;&emsp;                            , 0 (for testing endpoint),
+\ &emsp;&emsp;&emsp;&emsp;                            , 1 for creating user
+\ &emsp;&emsp;&emsp;&emsp;                            , 2 for the model's move
 - to create user embeddings, specify additional fields in data:
 &emsp;&emsp;&emsp;&emsp;                            , "username" : chess.com username,
 &emsp;&emsp;&emsp;&emsp;                            , "pgn_content": a sinlge pgn consisting of multiple games played by the user.
