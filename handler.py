@@ -165,7 +165,7 @@ def process_game(game, prediction_mode = False):
 class EndpointHandler():
     def __init__(self, model_dir):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        checkpoint = torch.load(os.path.join(model_dir, "6_2.pt"), self.device, weights_only=True)
+        checkpoint = torch.load(os.path.join(model_dir, "6_3.pt"), self.device, weights_only=True)
         self.model = Encoder(self.device)
         state_dict = checkpoint['model_state']
         self.model.load_state_dict(state_dict)
