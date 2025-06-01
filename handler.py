@@ -191,7 +191,7 @@ class EndpointHandler():
 
         l = []
         while True:
-            game = chess.pgn.read_game(pgn_content)
+            game = chess.pgn.read_game(io.StringIO(pgn_content))
             if game is None:
                 print("breaking main loop")
                 break
