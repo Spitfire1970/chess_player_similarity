@@ -1,5 +1,5 @@
 ## Note
-- The models for this repository (trained weights) live in LFS using hugging face repository. GitHub only contains the code.
+- The models for this repository (trained weights) live in LFS using hugging face repository at https://huggingface.co/spitfire1970/chess_player_similarity. GitHub only contains the code.
 
 
 ---
