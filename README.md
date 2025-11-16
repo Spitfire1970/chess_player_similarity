@@ -1,3 +1,7 @@
+## Note
+- The models for this repository (trained weights) live in LFS using hugging face repository. GitHub only contains the code.
+
+
 ---
 datasets:
 - Lichess/standard-chess-games
